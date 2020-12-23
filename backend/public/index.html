@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<!--
+    WARNING! Make sure that you match all Quasar related
+    tags to the same version! (Below it's "@1.14.7")
+  -->
+
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet"
+    type="text/css">
+  <link href="https://cdn.jsdelivr.net/npm/quasar@1.14.7/dist/quasar.min.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+  <div id="q-app">
+    <div class="q-pa-md">
+      <q-table v-if="page == 'list'" title="Products" :data="products" :columns="columns" row-key="id" binary-state-sort
+        :filter="filter" :loading="loading">
+
+        <template v-slot:top>
+          <q-input outlined debounce="300" color="primary" v-model="filter">
+            <template v-slot:append>
+              <q-icon name="search"></q-icon>
+            </template>
+          </q-input>
+          <q-space></q-space>
+          <q-btn color="green" label="Create Product" @click="page = 'create'"></q-btn>
+        </template>
+
+        <template v-slot:body="props">
+          <q-tr :props="props">
+            <q-td key="id" :props="props">{{ props.row.id }}</q-td>
+            <q-td key="name" :props="props">
+              {{ props.row.name }}
+              <q-popup-edit v-model="props.row.name" title="Update name" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="text" v-model="props.row.name" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="category" :props="props">
+              {{ props.row.category }}
+              <q-popup-edit v-model="props.row.category" title="Update category" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="text" v-model="props.row.category" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="price" :props="props">
+              {{ props.row.price }}
+              <q-popup-edit v-model="props.row.price" title="Update price" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="number" v-model="props.row.price" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="description" :props="props">
+              {{ props.row.description }}
+              <q-popup-edit v-model="props.row.description" title="Update description" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="text" v-model="props.row.description" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="countInStock" :props="props">
+              {{ props.row.countInStock }}
+              <q-popup-edit v-model="props.row.countInStock" title="Update countInStock" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="number" v-model="props.row.countInStock" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="image" :props="props">
+              <q-img :src="props.row.image"></q-img>
+              <q-popup-edit v-model="props.row.image" title="Update image" buttons persistent
+                @save="updateProduct(props.row.id, props.row)">
+                <q-input type="text" v-model="props.row.image" dense autofocus />
+              </q-popup-edit>
+            </q-td>
+            <q-td key="createdAt" :props="props">
+              {{ formatDate(props.row.createdAt) }}
+            </q-td>
+            <q-td key="action" :props="props">
+              <q-btn color="red" icon="delete" label="Delete" @click="deleteProduct(props.row.id)" />
+            </q-td>
+          </q-tr>
+        </template>
+      </q-table>
+      <div v-if="page == 'create'">
+        <q-form @submit="createProduct" class="q-gutter-md">
+          <div class="text-h3 q-my-md">Create Product</div>
+          <q-input outlined v-model="product.name" label="Product name" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+
+          <q-input outlined v-model="product.description" label="Product description" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+
+          <q-input outlined v-model="product.price" label="Product price" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+
+          <q-input outlined v-model="product.countInStock" label="Product countInStock" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+
+          <q-input outlined v-model="product.category" label="Product category" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+
+          <q-input outlined v-model="product.image" label="Product image" lazy-rules
+            :rules="[ val => val && val.length > 0 || 'Please type something']"></q-input>
+          <div>
+            <q-img :src="product.image" width="72px" height="72px"></q-img>
+          </div>
+
+          <div>
+            <q-btn label="Submit" type="submit" color="green"></q-btn>
+            <q-btn label="Back" @click="page = 'list'" color="warning"></q-btn>
+          </div>
+        </q-form>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@^2.0.0/dist/vue.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quasar@1.14.7/dist/quasar.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.2.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.2.1/firebase-firestore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyDsR3cCWvvEUfCtTVaGMxb-of71S30OfYw",
+      authDomain: "jasmine-ecommerce.firebaseapp.com",
+      projectId: "jasmine-ecommerce",
+      storageBucket: "jasmine-ecommerce.appspot.com",
+      messagingSenderId: "496594169433",
+      appId: "1:496594169433:web:d6eef11e8d368144f8cb48"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    new Vue({
+      el: '#q-app',
+      data() {
+        return {
+          filter: '',
+          loading: false,
+          product: {
+            name: '',
+            description: '',
+            price: 0,
+            countInStock: 0,
+            category: '',
+            image: ''
+          },
+          page: 'list',
+          columns: [
+            { name: 'id', align: 'center', label: '#', field: 'id', sortable: true },
+            { name: 'name', align: 'center', label: 'Name', field: 'name', sortable: true },
+            { name: 'category', align: 'center', label: 'Category', field: 'category', sortable: true },
+            { name: 'price', align: 'center', label: 'Price', field: 'price', sortable: true },
+            { name: 'description', align: 'center', label: 'Description', field: 'description' },
+            { name: 'countInStock', align: 'center', label: 'Count In Stock', field: 'countInStock', sortable: true },
+            { name: 'image', align: 'center', label: 'Image', field: 'image', },
+            { name: 'createdAt', align: 'center', label: 'Created At', field: 'createdAt', sortable: true },
+            { name: 'action', align: 'center', label: 'Action' },
+          ],
+          products: []
+        }
+      },
+      methods: {
+        formatDate(payload) {
+          return new Date(payload.seconds * 1000)
+        },
+        async fetchProducts() {
+          await firebase.firestore().collection('products').onSnapshot((querySnapshot) => {
+            this.loading = true
+            this.products = querySnapshot.docs.map(doc => doc.data())
+            setTimeout(() => {
+              this.loading = false
+            }, 500);
+          });
+        },
+        async updateProduct(id, payload) {
+          try {
+            this.loading = true
+            await firebase.firestore().collection('products').doc(id).update({
+              ...payload
+            })
+            this.loading = false
+          } catch (e) {
+            console.error(e)
+          }
+        },
+        async deleteProduct(id) {
+          this.loading = true
+          await firebase.firestore().collection('products').doc(id).delete(id)
+          this.loading = false
+        },
+        async createProduct() {
+          this.loading = true
+
+          firebase.firestore().collection('views').doc('product-categories').update({
+            categories: firebase.firestore.FieldValue.arrayUnion(this.product.category)
+          })
+
+          const createdRef = await firebase.firestore().collection('products').add({
+            ...this.product,
+            createdAt: new Date()
+          })
+
+          await createdRef.update({
+            id: createdRef.id
+          })
+
+          this.page = 'list'
+          this.clearProductField()
+          this.loading = false
+        },
+        clearProductField() {
+          this.product = {
+            name: '',
+            description: '',
+            price: 0,
+            countInStock: 0,
+            category: '',
+            image: ''
+          }
+        }
+      },
+      mounted() {
+        this.fetchProducts()
+      },
+    })
+  </script>
+</body>
+
+</html>

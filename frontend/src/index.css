@@ -1,0 +1,7 @@
+.bg-main {
+  background-color: #69dc9e;
+}
+
+html, body{
+  scroll-behavior: smooth;
+}
